@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>MovieExplorer</title>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Navigation Bar -->
+        <header>
+            <nav>
+                <div class="logo">
+                    <a href="index.html" style="text-decoration: none;"><h1>MovieExplorer</h1></a>
+                </div>
+                <div class="search">
+                    <label for="search-input" class="visually-hidden">Search for a movie</label>
+                    <input type="text" id="search-input" placeholder="Search for a movie">
+                    <button id="search-button" class="btn search-btn">Search</button>
+                    <button id="home-button" class="btn visually-hidden" style="margin-left: 0.5rem;">Popular 2025</button>
+                </div>
+            </nav>
+        </header>
+
+        <!-- Movie List -->
+        <main>
+            <div id="loader">Loading...</div>
+            <div id="movie-list" class="movie-list">
+                <!-- Movies will be populated here -->
+            </div>
+            <div class="no-results-message" id="no-results-message">No movies found.</div>
+            <div class="error-message" id="error-message">Error loading data. Please try again.</div>
+        </main>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button id="prev-button" class="btn prev-btn">Previous</button>
+            <span id="page-info" style="color: var(--color-text-secondary); margin: 0 1rem;">1</span>
+            <button id="next-button" class="btn next-btn">Next</button>
+        </div>
+
+        <!-- Footer -->
+        <footer>
+            <p>&copy; <span id="current-year"></span> MovieExplorer. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
