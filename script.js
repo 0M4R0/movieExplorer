@@ -318,6 +318,9 @@
                 backToHomeButton.addEventListener('click', () => {
                     // Limpiar búsqueda y cargar películas populares
                     localStorage.removeItem('searchState');
+                    currentSearch = '';
+                    currentPage = 1;
+                    if (searchInput) searchInput.value = '';
                     
                     // Limpiar la URL
                     const url = new URL(window.location);
