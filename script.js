@@ -279,6 +279,26 @@ function initializeApp() {
         });
     }
 
+    document.addEventListener('keydown', (e) => {
+        const activeElement = document.activeElement;
+        const isTyping = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable;
+    
+        if (e.key === '/' && !isTyping) {
+            e.preventDefault();
+            searchInput.focus();
+        }
+
+        if (e.key === 'Escape') {
+            searchInput.value = '';
+            searchInput.blur();
+        }
+
+        // if (e.ctrlKey && e.key === 'k') {
+        //     e.preventDefault();
+        //     searchInput.focus();
+        // }
+    })
+
     // Previous button
     if (prevButton) {
         prevButton.addEventListener('click', async () => {
