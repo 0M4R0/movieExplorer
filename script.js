@@ -3,7 +3,7 @@ const apiKey = "1b64fc34b21d69f6b5469f62bf975c09";
 
 // --- DOM Elements ---
 const searchInput = document.getElementById('search-input');
-const searchButton = document.getElementById('search-button');
+const searchButton = document.getElementById('search-btn');
 const homeButton = document.getElementById('home-button');
 const movieListContainer = document.getElementById('movie-list');
 const prevButton = document.getElementById('prev-button');
