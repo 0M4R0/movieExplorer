@@ -349,6 +349,46 @@ footer a:hover {
 }
 
 
+/* Responsive Design */
+@media (max-width: 768px) {
+    nav {
+        flex-direction: column;
+        gap: 1rem;
+        padding: 1rem;
+    }
+
+    .search-container {
+        width: 100%;
+        max-width: none;
+    }
+
+    .movie-grid {
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .page-title {
+        font-size: 1.5rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .movie-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    main {
+        padding: 1rem;
+    }
+}
+
+
 /* Styles for movieCard.html */
 .movie-details {
     background-color: var(--color-surface);
