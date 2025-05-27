@@ -275,6 +275,7 @@ function initializeApp() {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 performSearch();
+                searchInput.blur();
             }
         });
     }
