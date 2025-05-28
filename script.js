@@ -205,6 +205,12 @@ async function performSearch() {
         return;
     }
 
+    if (window.location.pathname.includes('movieCard.html')) {
+        const redirectUrl = 'index.html?query=' + encodeURIComponent(searchQuery);
+        window.location.href = redirectUrl;
+        return;
+    }
+
     showBackToHomeButton();
 
     currentSearch = searchQuery;
@@ -223,11 +229,15 @@ async function performSearch() {
 
 
 function showBackToHomeButton() {
-    backToHomeButton.style.display = 'block';
+    if (backToHomeButton) {
+        backToHomeButton.style.display = 'block';
+    }
 }
 
 function hideBackToHomeButton() {
-    backToHomeButton.style.display = 'none';
+    if (backToHomeButton) {
+        backToHomeButton.style.display = 'none';
+    }
 }
 
 async function loadPopularMovies() {
