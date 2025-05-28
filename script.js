@@ -94,6 +94,12 @@ function displayMovies(movies) {
 
         // Add click event to redirect to movieCard.html
         movieItem.addEventListener('click', () => {
+            // Store the CURRENT page state (not from localStorage, but from current variables)
+            const currentState = {
+                query: currentSearch,
+                page: currentPage
+            };
+            
             // Store movie data in localStorage
             localStorage.setItem('selectedMovie', JSON.stringify({
                 title: movie.title || 'No title available',
@@ -101,6 +107,10 @@ function displayMovies(movies) {
                 release_date: movie.release_date || '',
                 overview: movie.overview || 'No description available.'
             }));
+            
+            // Store the current state (this ensures we have the right search context)
+            localStorage.setItem('searchState', JSON.stringify(currentState));
+            
             // Redirect to movieCard.html
             window.location.href = 'movieCard.html';
         });
@@ -293,11 +303,6 @@ function initializeApp() {
             searchInput.value = '';
             searchInput.blur();
         }
-
-        // if (e.ctrlKey && e.key === 'k') {
-        //     e.preventDefault();
-        //     searchInput.focus();
-        // }
     })
 
     // Previous button
@@ -337,13 +342,13 @@ function initializeApp() {
     // Back to home button
     if (backToHomeButton) {
         backToHomeButton.addEventListener('click', () => {
-            // Limpiar búsqueda y cargar películas populares
+            // Clear search and load popular movies
             localStorage.removeItem('searchState');
             currentSearch = '';
             currentPage = 1;
             if (searchInput) searchInput.value = '';
 
-            // Limpiar la URL
+            // Clear URL
             const url = new URL(window.location);
             url.search = '';
             window.history.replaceState({}, '', url.pathname);
@@ -357,11 +362,14 @@ function initializeApp() {
             const savedState = JSON.parse(localStorage.getItem('searchState')) || {};
             let redirectUrl = 'index.html';
 
-            // Si había una búsqueda activa, volver a ella
-            if (savedState.query) {
+            // Check if there was an active search
+            if (savedState.query && savedState.query.trim() !== '') {
+                // Add query parameters to maintain the search state
                 redirectUrl += `?query=${encodeURIComponent(savedState.query)}&page=${savedState.page || 1}`;
+                console.log('Redirecting with search:', savedState); // Debug log
+            } else {
+                console.log('No search state found, going to homepage'); // Debug log
             }
-            // Si no había búsqueda, volver al inicio con películas populares
 
             window.location.href = redirectUrl;
         });
