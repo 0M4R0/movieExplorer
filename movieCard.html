@@ -6,6 +6,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <link rel="stylesheet" href="style.css">
     <title>Movie Card</title>
     <meta name="description" content="Discover and explore popular movies with MovieExplorer">
@@ -20,7 +22,10 @@
         <header>
             <nav>
                 <div class="logo">
-                    <a href="index.html" style="text-decoration: none;"><h1>MovieExplorer</h1></a>
+                    <a href="index.html">
+                        <i class="fas fa-film logo-icon"></i>
+                        <h1>MovieExplorer</h1>
+                    </a>
                 </div>
                 <div class="search-container">
                     <div class="search-input-group">
@@ -32,6 +37,7 @@
                             autocomplete="off"
                             aria-describedby="search-help"
                         >
+                        <i class="fas fa-search"></i>
                     </div>
                     <button id="search-btn" class="btn" type="button">Search</button>
                     <button id="home-btn" class="btn visually-hidden" type="button">Popular 2025</button>
@@ -41,22 +47,36 @@
 
         <!-- Main Content -->
         <main>
-            <button id="back-to-search-button" class="btn back-to-home-btn"><i class="fa-solid fa-arrow-left" style="margin-right: 10px;"></i>Back</button>
-            <div id="movie-details" class="movie-details">
-                <img id="movie-poster" class="movie-poster img-poster-detail" src="" alt="Movie poster">
-                <div class="movie-info">
-                    <h2 id="movie-title" class="movie-title-detail">Loading...</h2>
-                    <p id="movie-year" class="movie-year-detail">Loading...</p>
-                    <p id="movie-description" class="movie-description-detail">Loading...</p>
+            <section>
+                <button id="back-to-search-button" class="btn back-to-home-btn" type="button">
+                    <i class="fa-solid fa-arrow-left icon-back-to-home"></i>
+                    Back
+                </button>
+                <div id="movie-details" class="movie-details">
+                    <img id="movie-poster" class="movie-poster img-poster-detail" src="" alt="Movie poster">
+                    <div class="movie-info">
+                        <h2 id="movie-title" class="movie-title-detail">Loading...</h2>
+                        <p id="movie-year" class="movie-year-detail">Loading...</p>
+                        <p id="movie-description" class="movie-description-detail">Loading...</p>
+                    </div>
                 </div>
-            </div>
-            <div id="error-message" class="error-message" style="display: none;">Error loading movie details. Please try again.</div>
+                <div id="error-message" class="error-message">
+                    <p>Error loading movie details. Please try again.</p>
+                    <p id="error-details" class="visually-hidden"></p>
+                </div>
+            </section>
         </main>
 
         <!-- Footer -->
         <footer>
             <p>&copy; <span id="current-year"></span> MovieExplorer. All rights reserved.</p>
-            <p>Developed by <a href="https://github.com/0M4R0" target="_blank" rel="noopener noreferrer">0M4R0</a></p>
+            <div class="footer-links">
+                <a href="index.html?watchlist=true">My Watchlist</a>
+                <span class="footer-divider">•</span>
+                <a href="https://github.com/0M4R0" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-github"></i> Developer
+                </a>
+            </div>
         </footer>
     </div>
 

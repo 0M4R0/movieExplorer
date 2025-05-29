@@ -4,6 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
     <link rel="stylesheet" href="style.css">
     <title>MovieExplorer</title>
     <meta name="description" content="Discover and explore popular movies with MovieExplorer">
@@ -18,7 +20,10 @@
         <header>
             <nav>
                 <div class="logo">
-                    <a href="index.html" style="text-decoration: none;"><h1>MovieExplorer</h1></a>
+                    <a href="index.html">
+                        <i class="fas fa-film logo-icon"></i>
+                        <h1>MovieExplorer</h1>
+                    </a>
                 </div>
                 <div class="search-container">
                     <div class="search-input-group">
@@ -30,37 +35,53 @@
                             autocomplete="off"
                             aria-describedby="search-help"
                         >
+                        <i class="fas fa-search"></i>
                     </div>
                     <button id="search-btn" class="btn" type="button">Search</button>
-                    <button id="home-btn" class="btn visually-hidden" type="button">Popular 2025</button>
+                    <button id="home-btn" class="btn" type="button">Popular</button>
                 </div>
             </nav>
         </header>
 
-        <!-- Movie List -->
+        <!-- Main Content -->
         <main>
             <div id="loader">Loading...</div>
             <div class="back-to-home disabled">
-                <button id="back-to-home-button" class="btn back-to-home-btn" style="display: none;"><i class="fa-solid fa-arrow-left" style="margin-right: 10px;"></i>Back to Home</button>
+                <button id="back-to-home-button" class="btn back-to-home-btn" type="button" style="display: none;">
+                    <i class="fa-solid fa-arrow-left icon-back-to-home"></i>
+                    Back to Home
+                </button>
             </div>
             <div id="movie-list" class="movie-list">
-                <!-- Movies will be populated here. -->
+                <!-- Movies will be populated here via JavaScript -->
             </div>
-            <div class="no-results-message" id="no-results-message">No movies found.</div>
-            <div class="error-message" id="error-message">Error loading data. Please try again later.</div>
+            <div class="no-results-message" id="no-results-message">
+                <i class="far fa-frown"></i>
+                <p>No movies found. Try a different search or filter.</p>
+            </div>
+            <div id="error-message" class="error-message">
+                <p>Error loading movie details. Please try again.</p>
+                <p id="error-details" class="visually-hidden"></p>
+            </div>
         </main>
 
         <!-- Pagination -->
         <div class="pagination">
-            <button id="prev-button" class="btn prev-btn">← Previous</button>
+            <button type="button" id="prev-button" class="btn btn-secondary prev-btn">← Previous</button>
             <span id="page-info" class="page-info">Page 1</span>
-            <button id="next-button" class="btn next-btn">Next →</button>
+            <button type="button" id="next-button" class="btn btn-secondary next-btn">Next →</button>
         </div>
 
         <!-- Footer -->
         <footer>
             <p>&copy; <span id="current-year"></span> MovieExplorer. All rights reserved.</p>
-            <p>Developed by <a href="https://github.com/0M4R0" target="_blank" rel="noopener noreferrer">0M4R0</a></p>
+            <div class="footer-links">
+                <a href="index.html?watchlist=true">My Watchlist</a>
+                <span class="footer-divider">•</span>
+                <a href="https://github.com/0M4R0" target="_blank" rel="noopener noreferrer">
+                    <i class="fab fa-github"></i> Developer
+                </a>
+            </div>
         </footer>
     </div>
 
