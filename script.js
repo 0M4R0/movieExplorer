@@ -789,7 +789,7 @@ function createWatchlistPageContent() {
     if (loader) loader.style.display = 'none';
     if (noResultsMessage) noResultsMessage.style.display = 'none';
     if (errorMessage) errorMessage.style.display = 'none';
-    hideBackToHomeButton();
+    showBackToHomeButton();
 
 
     const watchlistHeading = document.createElement('h2');
