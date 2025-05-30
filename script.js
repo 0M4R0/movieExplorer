@@ -1134,6 +1134,39 @@ function initializeApp() {
     } else {
         document.body.classList.remove('on-movie-card-page');
     }
+
+    themeToggle();
+}
+
+function themeToggle() {
+    const themeToggle = document.getElementById('theme-toggle');
+    const body = document.body;
+
+    // Load saved theme from localStorage
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    if (savedTheme === 'light') {
+        body.classList.add('light');
+        themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light';
+        themeToggle.setAttribute('aria-label', 'Switch to dark mode');
+    } else {
+        body.classList.remove('light');
+        themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark';
+        themeToggle.setAttribute('aria-label', 'Switch to light mode');
+    }
+
+    // Toggle theme on button click
+    themeToggle.addEventListener('click', () => {
+        body.classList.toggle('light');
+        if (body.classList.contains('light')) {
+            localStorage.setItem('theme', 'light');
+            themeToggle.innerHTML = '<i class="fas fa-sun"></i> Light';
+            themeToggle.setAttribute('aria-label', 'Switch to dark mode');
+        } else {
+            localStorage.setItem('theme', 'dark');
+            themeToggle.innerHTML = '<i class="fas fa-moon"></i> Dark';
+            themeToggle.setAttribute('aria-label', 'Switch to light mode');
+        }
+    });
 }
 
 // Initialize when DOM is loaded

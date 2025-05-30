@@ -127,7 +127,7 @@ nav {
     align-items: center;
     gap: 0.75rem;
     flex: 1;
-    max-width: 500px;
+    max-width: 600px;
 }
 
 .search-input-group {
@@ -294,6 +294,7 @@ main {
 }
 
 .movie-list {
+    margin-top: 1rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 2rem;
@@ -316,7 +317,7 @@ main {
 
 .movie-list .movie-item:hover {
     transform: perspective(1000px) rotateY(5deg) translateY(-8px);
-    box-shadow: 0 15px 30px rgba(99, 102, 241, 0.3);
+    box-shadow: 0 15px 40px 5px rgba(99, 102, 241, 0.3);
 }
 
 .movie-list .movie-item:hover .movie-poster {
@@ -1200,4 +1201,188 @@ footer a:hover {
 
 .display-none {
     display: none;
+}
+
+
+/* Light Mode */
+body.light {
+    --color-background: #f0f2f5;
+    --color-surface: #ffffff;
+    --color-surface-elevated: #f5f5f5;
+    --color-primary: #007bff;
+    --color-primary-hover: #0056b3;
+    --color-accent: #ff9900;
+    --color-text-main: #212529;
+    --color-text-secondary: #6c757d;
+    --color-text-muted: #adb5bd;
+    --color-success: #28a745;
+    --color-error: #dc3545;
+    --color-warning: #ffc107;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+    background: linear-gradient(135deg, #f0f2f5 0%, #e9ecef 100%);
+}
+
+body.light header {
+    background-color: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid var(--color-primary);
+}
+
+body.light header.scrolled {
+    background-color: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+body.light .logo h1,
+body.light .logo-icon {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+body.light .search-input-group i {
+    color: var(--color-text-muted);
+}
+
+body.light #search-input {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-main);
+}
+
+body.light #search-input:focus + i {
+    color: var(--color-primary);
+}
+
+body.light #search-input::placeholder {
+    color: var(--color-text-muted);
+}
+
+body.light .btn {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+    color: white;
+}
+
+body.light .btn-secondary {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-secondary);
+}
+
+body.light .btn-secondary:hover {
+    background: var(--color-surface);
+    color: var(--color-text-main);
+}
+
+body.light .filter-button {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+body.light .filter-button:hover {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-main);
+}
+
+body.light .filter-button.active {
+    background: var(--color-primary);
+    color: white;
+}
+
+body.light .movie-item {
+    background-color: var(--color-surface);
+}
+
+body.light .movie-item:hover {
+    box-shadow: 0 10px 10px 5px rgba(0, 0, 0, 0.783);
+}
+
+body.light .movie-poster-container::before {
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0.9) 60%, transparent);
+}
+
+body.light .movie-details {
+    background-color: var(--color-surface);
+}
+
+body.light .movie-details .movie-poster {
+    border: 1px solid var(--color-primary);
+}
+
+body.light .movie-title {
+    color: var(--color-text-main);
+    text-shadow: none;
+}
+
+body.light .movie-year {
+    color: #d97706;
+    text-shadow: none;
+}
+
+body.light .movie-description {
+    color: var(--color-text-secondary);
+    text-shadow: none;
+}
+
+body.light .movie-description-detail {
+    color: var(--color-text-secondary);
+}
+
+body.light .cast-item {
+    background: var(--color-surface-elevated);
+}
+
+body.light .similar-movie-item {
+    background: var(--color-surface-elevated);
+}
+
+body.light footer {
+    background: var(--color-surface);
+    border-top: 1px solid rgba(0, 123, 255, 0.2);
+}
+
+body.light .toast {
+    background: var(--color-surface-elevated);
+    color: var(--color-text-main);
+}
+
+body.light .watchlist-empty {
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+}
+
+body.light .watchlist-empty i {
+    color: var(--color-text-muted);
+}
+
+body.light .keyboard-shortcut {
+    background-color: rgb(117, 116, 116);
+    color: white
+}
+
+body.light .movie-title {
+    color: white;
+}
+
+body.light .page-title {
+    color: var(--color-primary);
+}
+
+.btnTheme {
+    padding: 0.875rem 1.5rem;
+    background: var(--color-surface-elevated);
+    color: var(--color-text-secondary);
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100px;
+    position: relative;
+    overflow: hidden;
 }
