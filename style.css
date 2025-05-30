@@ -862,6 +862,14 @@ footer a:hover {
     flex-grow: 1;
 }
 
+.genres-list {
+    display: flex;
+}
+
+.genres-list span {
+    margin-right: 0.5rem;
+}
+
 .movie-details .movie-poster {
     width: 100%;
     max-width: 300px;
@@ -1188,4 +1196,8 @@ footer a:hover {
     .similar-movies-list {
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
+}
+
+.display-none {
+    display: none;
 }

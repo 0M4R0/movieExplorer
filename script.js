@@ -5,6 +5,7 @@ const apiKey = "1b64fc34b21d69f6b5469f62bf975c09";
 const searchInput = document.getElementById('search-input');
 const searchButton = document.getElementById('search-btn');
 const homeButton = document.getElementById('home-btn');
+const watchlistButton = document.getElementById('watchlist-btn'); // Ensure this is defined
 const movieListContainer = document.getElementById('movie-list');
 const prevButton = document.getElementById('prev-button');
 const nextButton = document.getElementById('next-button');
@@ -27,7 +28,7 @@ const movieDescription = document.getElementById('movie-description');
 let currentPage = 1;
 let currentSearch = '';
 let totalPages = 0;
-let selectedGenre = '';
+let selectedGenre = ''; // Stores the ID of the selected genre
 let watchlist = JSON.parse(localStorage.getItem('watchlist')) || [];
 
 // --- Constants ---
@@ -73,7 +74,8 @@ function initializeUI() {
     }
 
     // Create genre filter bar if we're on the index page
-    if (movieListContainer && !document.querySelector('.filter-bar')) {
+    // Ensure it's only created if not on movieCard.html
+    if (movieListContainer && !document.querySelector('.filter-bar') && !window.location.pathname.includes('movieCard.html')) {
         createGenreFilterBar();
     }
 
@@ -101,14 +103,14 @@ function initializeUI() {
 function createGenreFilterBar() {
     const filterBar = document.createElement('div');
     filterBar.className = 'filter-bar';
-    
+
     // Add "All" option
-    const allButton = document.createElement('button');
-    allButton.className = 'filter-button active';
-    allButton.dataset.genreId = '';
-    allButton.textContent = 'All';
-    filterBar.appendChild(allButton);
-    
+    const allButtonEl = document.createElement('button');
+    allButtonEl.className = 'filter-button active';
+    allButtonEl.dataset.genreId = ''; // Empty string for "All"
+    allButtonEl.textContent = 'All';
+    filterBar.appendChild(allButtonEl);
+
     // Add top 10 popular genres
     const popularGenres = [28, 12, 16, 35, 18, 14, 27, 10749, 878, 53];
     popularGenres.forEach(genreId => {
@@ -116,47 +118,88 @@ function createGenreFilterBar() {
         if (genre) {
             const button = document.createElement('button');
             button.className = 'filter-button';
-            button.dataset.genreId = genre.id;
+            button.dataset.genreId = genre.id.toString();
             button.textContent = genre.name;
             filterBar.appendChild(button);
         }
     });
-    
-    // Add event listeners
+
+    // Add event listeners for filter buttons
     filterBar.addEventListener('click', (e) => {
         if (e.target.classList.contains('filter-button')) {
-            // Remove active class from all buttons
             document.querySelectorAll('.filter-button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            
-            // Add active class to clicked button
             e.target.classList.add('active');
-            
-            // Set selected genre and fetch movies
+
             selectedGenre = e.target.dataset.genreId;
-            currentPage = 1;
-            
-            // Update the URL to reflect the filter
-            const url = new URL(window.location);
-            if (selectedGenre) {
-                url.searchParams.set('genre', selectedGenre);
+            currentPage = 1; 
+
+            const isWatchlistPage = window.location.search.includes('watchlist=true');
+
+            if (isWatchlistPage) {
+                let filteredWatchlistMovies;
+                if (selectedGenre) { 
+                    const genreIdNumber = parseInt(selectedGenre);
+                    filteredWatchlistMovies = watchlist.filter(movie =>
+                        movie.genre_ids && movie.genre_ids.includes(genreIdNumber)
+                    );
+                } else { 
+                    filteredWatchlistMovies = watchlist;
+                }
+                // If a search query is active on watchlist, filter by that too
+                const urlParams = new URLSearchParams(window.location.search);
+                const watchlistQuery = urlParams.get('query');
+                if (watchlistQuery) {
+                    currentSearch = watchlistQuery; // Keep currentSearch updated
+                    filteredWatchlistMovies = filteredWatchlistMovies.filter(movie =>
+                        movie.title.toLowerCase().includes(watchlistQuery.toLowerCase())
+                    );
+                }
+
+                displayMovies(filteredWatchlistMovies); 
+                updateURL(); // Update URL to reflect genre change on watchlist
+
+                let watchlistHeadingEl = movieListContainer.parentNode.querySelector('.page-title');
+                if (!watchlistHeadingEl) {
+                    watchlistHeadingEl = document.createElement('h2');
+                    watchlistHeadingEl.className = 'page-title animate-fade-in';
+                    if (movieListContainer.parentNode) {
+                        movieListContainer.parentNode.insertBefore(watchlistHeadingEl, movieListContainer);
+                    }
+                }
+                watchlistHeadingEl.innerHTML = '<i class="fas fa-bookmark"></i> Your Watchlist';
+                 if (currentSearch) { // Append search term if active
+                    watchlistHeadingEl.innerHTML += ` - Results for "${currentSearch}"`;
+                }
+
+
+                const paginationContainer = document.querySelector('.pagination');
+                if (paginationContainer) {
+                    paginationContainer.style.display = 'none';
+                }
             } else {
-                url.searchParams.delete('genre');
+                // Not on watchlist page, fetch from API as usual
+                removeWatchlistTitleIfNeeded(); 
+                currentSearch = ''; // Clear search when changing genre on popular/API search
+                if(searchInput) searchInput.value = '';
+                updateURL(); // This will set genre and remove watchlist/query
+                fetchAndDisplayMovies();
+
+                const paginationContainer = document.querySelector('.pagination');
+                if (paginationContainer) {
+                    paginationContainer.style.display = 'flex';
+                }
             }
-            window.history.replaceState({}, '', url);
-            
-            fetchAndDisplayMovies();
         }
     });
-    
-    // Insert before movie list
+
     const main = document.querySelector('main');
-    if (main && movieListContainer) {
-        main.insertBefore(filterBar, movieListContainer.previousElementSibling);
+    if (main && movieListContainer && movieListContainer.parentNode) {
+        const targetNode = movieListContainer.parentNode.querySelector('.page-title') || movieListContainer;
+        main.insertBefore(filterBar, targetNode);
     }
-    
-    // Check if genre is in URL
+
     const urlParams = new URLSearchParams(window.location.search);
     const urlGenre = urlParams.get('genre');
     if (urlGenre) {
@@ -173,33 +216,29 @@ function createGenreFilterBar() {
 
 // --- Create Pagination Numbers ---
 function createPaginationNumbers() {
-    // Remove existing page numbers
     const existingNumbers = document.querySelector('.page-numbers');
     if (existingNumbers) {
         existingNumbers.remove();
     }
-    
+
     if (!totalPages || totalPages <= 1) return;
-    
+
     const pageNumbers = document.createElement('div');
     pageNumbers.className = 'page-numbers';
-    
-    // Calculate range to show
+
     let start = Math.max(1, currentPage - 2);
     let end = Math.min(totalPages, start + 4);
-    
-    // Adjust start if end is maxed out
+
     if (end === totalPages) {
         start = Math.max(1, totalPages - 4);
     }
-    
-    // Add first page if not included in range
+
     if (start > 1) {
         const firstPageBtn = document.createElement('button');
         firstPageBtn.textContent = '1';
         firstPageBtn.addEventListener('click', () => goToPage(1));
         pageNumbers.appendChild(firstPageBtn);
-        
+
         if (start > 2) {
             const ellipsis = document.createElement('span');
             ellipsis.textContent = '...';
@@ -207,8 +246,7 @@ function createPaginationNumbers() {
             pageNumbers.appendChild(ellipsis);
         }
     }
-    
-    // Add page numbers in range
+
     for (let i = start; i <= end; i++) {
         const pageBtn = document.createElement('button');
         pageBtn.textContent = i;
@@ -218,8 +256,7 @@ function createPaginationNumbers() {
         pageBtn.addEventListener('click', () => goToPage(i));
         pageNumbers.appendChild(pageBtn);
     }
-    
-    // Add last page if not included in range
+
     if (end < totalPages) {
         if (end < totalPages - 1) {
             const ellipsis = document.createElement('span');
@@ -227,24 +264,25 @@ function createPaginationNumbers() {
             ellipsis.className = 'page-ellipsis';
             pageNumbers.appendChild(ellipsis);
         }
-        
+
         const lastPageBtn = document.createElement('button');
         lastPageBtn.textContent = totalPages;
         lastPageBtn.addEventListener('click', () => goToPage(totalPages));
         pageNumbers.appendChild(lastPageBtn);
     }
-    
-    // Add to pagination container
+
     const pagination = document.querySelector('.pagination');
-    if (pagination) {
+    if (pagination && pageInfo && pageInfo.nextElementSibling) {
         pagination.insertBefore(pageNumbers, pageInfo.nextElementSibling);
+    } else if (pagination && pageInfo) {
+         pagination.appendChild(pageNumbers); 
     }
 }
 
 // --- Go to specific page ---
 function goToPage(page) {
     if (page < 1 || page > totalPages || page === currentPage) return;
-    
+
     currentPage = page;
     updateURL();
     fetchAndDisplayMovies();
@@ -253,53 +291,53 @@ function goToPage(page) {
 // --- Update URL with current state ---
 function updateURL() {
     const url = new URL(window.location);
-    
-    // Add query if searching
-    if (currentSearch) {
-        url.searchParams.set('query', currentSearch);
+    url.search = ''; // Clear existing params first
+
+    const isWatchlistActive = document.body.classList.contains('watchlist-active'); // Use a class to track watchlist mode
+
+    if (isWatchlistActive) {
+        url.searchParams.set('watchlist', 'true');
+        if (currentSearch) { // If there's an active search term for the watchlist
+            url.searchParams.set('query', currentSearch);
+        }
+        if (selectedGenre) { // If a genre is selected for the watchlist
+            url.searchParams.set('genre', selectedGenre);
+        }
     } else {
-        url.searchParams.delete('query');
+        if (currentSearch) {
+            url.searchParams.set('query', currentSearch);
+        }
+        if (selectedGenre) {
+            url.searchParams.set('genre', selectedGenre);
+        }
+        if (currentPage > 1) {
+            url.searchParams.set('page', currentPage.toString());
+        }
     }
-    
-    // Add page if not page 1
-    if (currentPage > 1) {
-        url.searchParams.set('page', currentPage);
-    } else {
-        url.searchParams.delete('page');
-    }
-    
-    // Add genre if filtering
-    if (selectedGenre) {
-        url.searchParams.set('genre', selectedGenre);
-    } else {
-        url.searchParams.delete('genre');
-    }
-    
-    window.history.replaceState({}, '', url);
+    window.history.replaceState({}, '', url.toString());
 }
+
 
 // --- Show Toast Notification ---
 function showToast(message, type = 'success') {
     const toastContainer = document.querySelector('.toast-container');
     if (!toastContainer) return;
-    
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
+
     const icon = document.createElement('i');
     icon.className = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-circle';
-    
+
     const text = document.createElement('span');
     text.textContent = message;
-    
+
     toast.appendChild(icon);
     toast.appendChild(text);
     toastContainer.appendChild(toast);
-    
-    // Show the toast
+
     setTimeout(() => toast.classList.add('show'), 10);
-    
-    // Hide and remove after delay
+
     setTimeout(() => {
         toast.classList.remove('show');
         setTimeout(() => toast.remove(), 300);
@@ -309,22 +347,43 @@ function showToast(message, type = 'success') {
 // --- Toggle Watchlist ---
 function toggleWatchlist(movieId, movieData) {
     const index = watchlist.findIndex(movie => movie.id === movieId);
-    
+
     if (index === -1) {
-        // Add to watchlist
-        watchlist.push(movieData);
+        watchlist.push(movieData); 
         showToast(`"${movieData.title}" added to watchlist`);
     } else {
-        // Remove from watchlist
         watchlist.splice(index, 1);
         showToast(`"${movieData.title}" removed from watchlist`);
     }
-    
-    // Update localStorage
+
     localStorage.setItem('watchlist', JSON.stringify(watchlist));
-    
-    // Update UI
     updateWatchlistButtons();
+
+    if (document.body.classList.contains('watchlist-active')) {
+        // Re-filter and display watchlist if currently on watchlist page
+        let moviesToDisplay = watchlist;
+        if (selectedGenre) {
+            const genreIdNum = parseInt(selectedGenre);
+            moviesToDisplay = moviesToDisplay.filter(m => m.genre_ids && m.genre_ids.includes(genreIdNum));
+        }
+        if (currentSearch) {
+             moviesToDisplay = moviesToDisplay.filter(m => m.title.toLowerCase().includes(currentSearch.toLowerCase()));
+        }
+
+        if (watchlist.length === 0 && !currentSearch && !selectedGenre) {
+             createWatchlistPageContent(); // Re-render empty state or full list
+        } else {
+            displayMovies(moviesToDisplay);
+        }
+         // Ensure title is correct
+        let watchlistHeadingEl = movieListContainer.parentNode.querySelector('.page-title');
+        if (watchlistHeadingEl) {
+            watchlistHeadingEl.innerHTML = '<i class="fas fa-bookmark"></i> Your Watchlist';
+            if (currentSearch) {
+                watchlistHeadingEl.innerHTML += ` - Results for "${currentSearch}"`;
+            }
+        }
+    }
 }
 
 // --- Update Watchlist Buttons ---
@@ -344,9 +403,7 @@ function updateWatchlistButtons() {
 // --- Create Skeleton Loaders ---
 function createSkeletonLoaders() {
     if (!movieListContainer) return;
-    
-    movieListContainer.innerHTML = '';
-    
+    movieListContainer.innerHTML = ''; 
     for (let i = 0; i < 8; i++) {
         const skeleton = document.createElement('div');
         skeleton.className = 'skeleton-movie';
@@ -362,49 +419,37 @@ function createSkeletonLoaders() {
 
 // --- Fetch movies from API ---
 async function fetchMovies(searchQuery = null, page = 1, genreId = '') {
-    createSkeletonLoaders();
-    
-    // Show loader and hide messages
-    if (loader) loader.style.display = 'none'; // We're using skeletons now
+    createSkeletonLoaders(); 
+
+    if (loader) loader.style.display = 'none';
     if (noResultsMessage) noResultsMessage.style.display = 'none';
     if (errorMessage) errorMessage.style.display = 'none';
 
     let url;
-    // If no search query, get popular movies of current year
     if (!searchQuery) {
         const currentYear = new Date().getFullYear();
         url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&sort_by=popularity.desc&primary_release_year=${currentYear}&page=${page}`;
-        
-        // Add genre filter if specified
         if (genreId) {
             url += `&with_genres=${genreId}`;
         }
     } else {
         url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&page=${page}`;
-        
-        // Add genre filter if specified
-        if (genreId) {
-            url += `&with_genres=${genreId}`;
+        if (genreId) { // TMDb search API doesn't directly use with_genres with query, but we can try
+             url += `&with_genres=${genreId}`; // This might not be effective for 'search' endpoint
         }
     }
 
     try {
         const response = await fetch(url, {
             method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
         });
-
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
-
         const data = await response.json();
-        totalPages = data.total_pages;
-
+        totalPages = data.total_pages > 500 ? 500 : data.total_pages; 
         return data;
     } catch (error) {
         console.error('Error fetching movies:', error);
@@ -422,203 +467,140 @@ async function fetchAndDisplayMovies() {
     displayMovies(data.results);
     updatePagination();
     createPaginationNumbers();
+    const paginationContainer = document.querySelector('.pagination');
+    if (paginationContainer) {
+        paginationContainer.style.display = (data.results.length > 0 && totalPages > 1) ? 'flex' : 'none';
+    }
 }
 
 // --- Display movies ---
 function displayMovies(movies) {
     if (!movieListContainer) return;
-
-    movieListContainer.innerHTML = '';
+    movieListContainer.innerHTML = ''; 
 
     if (movies.length === 0) {
-        if (noResultsMessage) noResultsMessage.style.display = "block";
+        if (noResultsMessage) {
+            noResultsMessage.style.display = "block";
+            const isWatchlistActive = document.body.classList.contains('watchlist-active');
+            if (isWatchlistActive && watchlist.length > 0) { // On watchlist, not empty, but filter yields no results
+                 noResultsMessage.innerHTML = `
+                    <i class="far fa-folder-open"></i>
+                    <p>No movies in your watchlist match this filter.</p>`;
+            } else if (isWatchlistActive && watchlist.length === 0) {
+                // createWatchlistPageContent handles the "Your watchlist is empty" message
+            } else { // General no results
+                 noResultsMessage.innerHTML = `
+                    <i class="far fa-frown"></i>
+                    <p>No movies found. Try a different search or filter.</p>`;
+            }
+        }
         return;
     }
+    if (noResultsMessage) noResultsMessage.style.display = "none";
+
 
     movies.forEach(movie => {
-        // Create item
         const movieItem = document.createElement('div');
-        movieItem.classList.add('movie-item');
-        movieItem.classList.add('animate-fade-in');
-
-        // Add click event to view details
+        movieItem.classList.add('movie-item', 'animate-fade-in');
         movieItem.addEventListener('click', (e) => {
-            // Don't navigate if clicking on favorite button
             if (e.target.closest('.favorite-btn')) return;
-            
-            // Store the CURRENT page state
-            const currentState = {
-                query: currentSearch,
-                page: currentPage,
-                genre: selectedGenre
-            };
-            
-            // Store movie data in localStorage
-            localStorage.setItem('selectedMovie', JSON.stringify({
-                id: movie.id,
-                title: movie.title || 'No title available',
-                poster_path: movie.poster_path || '',
-                backdrop_path: movie.backdrop_path || '',
-                release_date: movie.release_date || '',
-                overview: movie.overview || 'No description available.',
-                vote_average: movie.vote_average || 0
-            }));
-            
-            // Store the current state
-            localStorage.setItem('searchState', JSON.stringify(currentState));
-            
-            // Navigate to details page with history API
+            localStorage.setItem('selectedMovie', JSON.stringify({ ...movie }));
+            localStorage.setItem('searchState', JSON.stringify({ query: currentSearch, page: currentPage, genre: selectedGenre }));
             navigateToDetails(movie.id);
         });
 
-        // Add rating badge
         const rating = movie.vote_average || 0;
         const ratingElement = document.createElement('div');
         ratingElement.className = 'movie-rating';
-        
-        // Set rating color class
-        if (rating >= 7) {
-            ratingElement.classList.add('high-rating');
-        } else if (rating >= 5) {
-            ratingElement.classList.add('medium-rating');
-        } else {
-            ratingElement.classList.add('low-rating');
-        }
-        
+        if (rating >= 7) ratingElement.classList.add('high-rating');
+        else if (rating >= 5) ratingElement.classList.add('medium-rating');
+        else ratingElement.classList.add('low-rating');
         ratingElement.textContent = rating.toFixed(1);
         movieItem.appendChild(ratingElement);
-        
-        // Add favorite button
+
         const favoriteBtn = document.createElement('button');
         favoriteBtn.className = 'favorite-btn';
-        favoriteBtn.dataset.movieId = movie.id;
-        favoriteBtn.innerHTML = '<i class="far fa-heart"></i>';
-        
-        // Check if movie is in watchlist
-        if (watchlist.some(m => m.id === movie.id)) {
-            favoriteBtn.classList.add('active');
-            favoriteBtn.innerHTML = '<i class="fas fa-heart"></i>';
-        }
-        
+        favoriteBtn.dataset.movieId = movie.id.toString();
+        favoriteBtn.innerHTML = watchlist.some(m => m.id === movie.id) ? '<i class="fas fa-heart"></i>' : '<i class="far fa-heart"></i>';
+        if (watchlist.some(m => m.id === movie.id)) favoriteBtn.classList.add('active');
+
         favoriteBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            toggleWatchlist(movie.id, {
+            const movieDataForWatchlist = {
                 id: movie.id,
                 title: movie.title,
                 poster_path: movie.poster_path,
                 release_date: movie.release_date,
                 overview: movie.overview,
-                vote_average: movie.vote_average
-            });
+                vote_average: movie.vote_average,
+                genre_ids: movie.genre_ids || []
+            };
+            toggleWatchlist(movie.id, movieDataForWatchlist);
         });
-        
         movieItem.appendChild(favoriteBtn);
 
-        // Create poster
-        const moviePoster = document.createElement('img');
-        moviePoster.classList.add('movie-poster');
+        const moviePosterEl = document.createElement('img');
+        moviePosterEl.classList.add('movie-poster');
+        moviePosterEl.src = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9Ijc1MCIgdmlld0JveD0iMCAwIDUwMCA3NTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iNzUwIiBmaWxsPSIjMmEyODNlIi8+Cjx0ZXh0IHg9IjI1MCIgeT0iMzc1IiBmaWxsPSIjYWFhYWFhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPgo=';
+        moviePosterEl.alt = movie.title || 'Movie poster';
+        moviePosterEl.loading = 'lazy';
 
-        // Handle missing poster
-        if (movie.poster_path) {
-            moviePoster.src = `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
-        } else {
-            moviePoster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9Ijc1MCIgdmlld0JveD0iMCAwIDUwMCA3NTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iNzUwIiBmaWxsPSIjMmEyODNlIi8+Cjx0ZXh0IHg9IjI1MCIgeT0iMzc1IiBmaWxsPSIjYWFhYWFhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPgo=';
-        }
+        const movieInfoEl = document.createElement('div');
+        movieInfoEl.classList.add('movie-info');
 
-        moviePoster.alt = movie.title || 'Movie poster';
+        const movieTitleEl = document.createElement('h2');
+        movieTitleEl.classList.add('movie-title');
+        movieTitleEl.textContent = movie.title || 'No title available';
 
-        // Create info
-        const movieInfo = document.createElement('div');
-        movieInfo.classList.add('movie-info');
-
-        // Create title
-        const movieTitle = document.createElement('h2');
-        movieTitle.classList.add('movie-title');
-        movieTitle.textContent = movie.title || 'No title available';
-
-        // Create year
-        const movieYear = document.createElement('p');
-        movieYear.classList.add('movie-year');
+        const movieYearEl = document.createElement('p');
+        movieYearEl.classList.add('movie-year');
         const releaseYear = movie.release_date ? new Date(movie.release_date).getFullYear() : 'Unknown year';
-        movieYear.innerHTML = `<i class="far fa-calendar-alt"></i> ${releaseYear}`;
+        movieYearEl.innerHTML = `<i class="far fa-calendar-alt"></i> ${releaseYear}`;
 
-        // Create description
-        const movieDescription = document.createElement('p');
-        movieDescription.classList.add('movie-description');
-        movieDescription.textContent = movie.overview || 'No description available.';
+        const movieDescriptionEl = document.createElement('p');
+        movieDescriptionEl.classList.add('movie-description');
+        movieDescriptionEl.textContent = movie.overview || 'No description available.';
 
-        // Append elements
-        movieInfo.appendChild(movieTitle);
-        movieInfo.appendChild(movieYear);
-        movieInfo.appendChild(movieDescription);
+        movieInfoEl.appendChild(movieTitleEl);
+        movieInfoEl.appendChild(movieYearEl);
+        movieInfoEl.appendChild(movieDescriptionEl);
 
-        // Append elements
-        movieItem.appendChild(moviePoster);
-        movieItem.appendChild(movieInfo);
+        movieItem.appendChild(moviePosterEl);
+        movieItem.appendChild(movieInfoEl);
 
-        // Append item to movie-list
         movieListContainer.appendChild(movieItem);
     });
 }
 
 // --- Navigate to Details Page ---
 function navigateToDetails(movieId) {
-    // For a real SPA, we would use a router here
-    // For simplicity, we're just navigating to another page
     window.location.href = `movieCard.html?id=${movieId}`;
 }
 
 // --- Fetch Movie Details ---
 async function fetchMovieDetails(movieId) {
-    try {
-        // Show loading skeletons
-        if (movieDetails) {
-            movieDetails.innerHTML = `
-                <div class="movie-details-loading">
-                    <div class="skeleton skeleton-poster"></div>
-                    <div class="skeleton-content">
-                        <div class="skeleton skeleton-title"></div>
-                        <div class="skeleton-metadata">
-                            <div class="skeleton skeleton-metadata-item"></div>
-                            <div class="skeleton skeleton-metadata-item"></div>
-                            <div class="skeleton skeleton-metadata-item"></div>
-                        </div>
-                        <div class="skeleton skeleton-description"></div>
-                    </div>
+    if (!movieDetails) return;
+    movieDetails.innerHTML = `
+        <div class="movie-details-loading">
+            <div class="skeleton skeleton-poster"></div>
+            <div class="skeleton-content">
+                <div class="skeleton skeleton-title"></div>
+                <div class="skeleton-metadata">
+                    <div class="skeleton skeleton-metadata-item"></div>
+                    <div class="skeleton skeleton-metadata-item"></div>
+                    <div class="skeleton skeleton-metadata-item"></div>
                 </div>
-            `;
-        }
-        
-        // Fetch movie details
+                <div class="skeleton skeleton-description"></div>
+            </div>
+        </div>
+    `;
+    try {
         const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${apiKey}&append_to_response=credits,videos`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const movie = await response.json();
-        
-        // Store in localStorage
-        localStorage.setItem('selectedMovie', JSON.stringify({
-            id: movie.id,
-            title: movie.title,
-            poster_path: movie.poster_path,
-            backdrop_path: movie.backdrop_path,
-            release_date: movie.release_date,
-            overview: movie.overview,
-            vote_average: movie.vote_average,
-            genres: movie.genres,
-            runtime: movie.runtime,
-            videos: movie.videos,
-            credits: movie.credits
-        }));
-        
-        // Display details
+        localStorage.setItem('selectedMovie', JSON.stringify(movie));
         displayMovieDetails(movie);
-        
-        // Fetch and display similar movies
         fetchSimilarMovies(movieId);
-        
     } catch (error) {
         console.error('Error fetching movie details:', error);
         if (errorMessage) {
@@ -632,14 +614,9 @@ async function fetchMovieDetails(movieId) {
 async function fetchSimilarMovies(movieId) {
     try {
         const response = await fetch(`https://api.themoviedb.org/3/movie/${movieId}/similar?api_key=${apiKey}`);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         displaySimilarMovies(data.results.slice(0, 8));
-        
     } catch (error) {
         console.error('Error fetching similar movies:', error);
     }
@@ -648,87 +625,68 @@ async function fetchSimilarMovies(movieId) {
 // --- Display Similar Movies ---
 function displaySimilarMovies(movies) {
     if (!movieDetails) return;
-    
-    // Create section if it doesn't exist
     let similarSection = document.querySelector('.similar-movies-section');
-    if (!similarSection) {
+    if (!similarSection && movies.length > 0) {
         similarSection = document.createElement('section');
         similarSection.className = 'similar-movies-section animate-fade-in';
         similarSection.innerHTML = `
             <h3 class="section-title"><i class="fas fa-film"></i> Similar Movies</h3>
             <div class="similar-movies-list"></div>
         `;
-        
         const main = document.querySelector('main');
-        if (main) {
-            main.appendChild(similarSection);
-        }
-    }
-    
-    const similarList = document.querySelector('.similar-movies-list');
-    if (!similarList) return;
-    
-    if (movies.length === 0) {
-        similarList.innerHTML = '<p class="no-results-message">No similar movies found.</p>';
+        if (main) main.appendChild(similarSection);
+    } else if (similarSection && movies.length === 0) {
+        similarSection.remove();
+        return;
+    } else if (!similarSection) {
         return;
     }
-    
+
+    const similarList = similarSection.querySelector('.similar-movies-list');
+    if (!similarList) return;
     similarList.innerHTML = '';
-    
+
     movies.forEach((movie, index) => {
         const movieItem = document.createElement('div');
         movieItem.className = 'similar-movie-item animate-fade-in';
         movieItem.style.animationDelay = `${index * 0.1}s`;
-        
-        movieItem.addEventListener('click', () => {
-            navigateToDetails(movie.id);
-        });
-        
+        movieItem.addEventListener('click', () => navigateToDetails(movie.id));
+
         const poster = document.createElement('img');
         poster.className = 'similar-movie-poster';
-        
-        if (movie.poster_path) {
-            poster.src = `https://image.tmdb.org/t/p/w300${movie.poster_path}`;
-        } else {
-            poster.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9Ijc1MCIgdmlld0JveD0iMCAwIDUwMCA3NTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iNzUwIiBmaWxsPSIjMmEyODNlIi8+Cjx0ZXh0IHg9IjI1MCIgeT0iMzc1IiBmaWxsPSIjYWFhYWFhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPgo=';
-        }
-        poster.alt = `${movie.title} poster`;
-        
+        poster.src = movie.poster_path ? `https://image.tmdb.org/t/p/w300${movie.poster_path}` : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9Ijc1MCIgdmlld0JveD0iMCAwIDUwMCA3NTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iNzUwIiBmaWxsPSIjMmEyODNlIi8+Cjx0ZXh0IHg9IjI1MCIgeT0iMzc1IiBmaWxsPSIjYWFhYWFhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPgo=';
+        poster.alt = `${movie.title || 'Movie'} poster`;
+        poster.loading = 'lazy';
+
         const info = document.createElement('div');
         info.className = 'similar-movie-info';
-        
-        const title = document.createElement('h4');
-        title.className = 'similar-movie-title';
-        title.textContent = movie.title;
-        
-        const year = document.createElement('p');
-        year.className = 'similar-movie-year';
-        year.textContent = movie.release_date ? new Date(movie.release_date).getFullYear() : 'Unknown';
-        
-        info.appendChild(title);
-        info.appendChild(year);
-        
+        const titleEl = document.createElement('h4');
+        titleEl.className = 'similar-movie-title';
+        titleEl.textContent = movie.title;
+        const yearEl = document.createElement('p');
+        yearEl.className = 'similar-movie-year';
+        yearEl.textContent = movie.release_date ? new Date(movie.release_date).getFullYear().toString() : 'Unknown';
+        info.appendChild(titleEl);
+        info.appendChild(yearEl);
         movieItem.appendChild(poster);
         movieItem.appendChild(info);
-        
         similarList.appendChild(movieItem);
     });
 }
 
+
 // --- Display Movie Details ---
 function displayMovieDetails(movie = null) {
     if (!movieDetails) return;
-
-    // If no movie is provided, try to get from localStorage
     if (!movie) {
         const storedMovie = localStorage.getItem('selectedMovie');
         if (!storedMovie) {
             if (errorMessage) {
                 errorMessage.style.display = 'block';
-                const errorDetails = document.getElementById('error-details');
-                if (errorDetails) {
-                    errorDetails.textContent = 'No movie data available.';
-                    errorDetails.classList.remove('visually-hidden');
+                const errorDetailsEl = document.getElementById('error-details');
+                if (errorDetailsEl) {
+                    errorDetailsEl.textContent = 'No movie data available.';
+                    errorDetailsEl.classList.remove('visually-hidden');
                 }
             }
             return;
@@ -736,76 +694,46 @@ function displayMovieDetails(movie = null) {
         movie = JSON.parse(storedMovie);
     }
 
-    // Create movie details HTML
     const hasBackdrop = movie.backdrop_path || '';
     const backdropUrl = hasBackdrop ? `https://image.tmdb.org/t/p/original${movie.backdrop_path}` : '';
 
     movieDetails.innerHTML = `
-        ${hasBackdrop ? `<img class="movie-backdrop" src="${backdropUrl}" alt="" aria-hidden="true">` : ''}
+        ${hasBackdrop ? `<img class="movie-backdrop" src="${backdropUrl}" alt="" aria-hidden="true" loading="lazy">` : ''}
         <div class="movie-content">
             <div class="movie-poster-container">
                 <img class="movie-poster img-poster-detail animate-fade-in" 
                      src="${movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9Ijc1MCIgdmlld0JveD0iMCAwIDUwMCA3NTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI1MDAiIGhlaWdodD0iNzUwIiBmaWxsPSIjMmEyODNlIi8+Cjx0ZXh0IHg9IjI1MCIgeT0iMzc1IiBmaWxsPSIjYWFhYWFhIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCI+Tm8gSW1hZ2U8L3RleHQ+Cjwvc3ZnPgo='}" 
-                     alt="${movie.title} poster">
-                
+                     alt="${movie.title || 'Movie'} poster" loading="lazy">
                 <button class="favorite-btn ${watchlist.some(m => m.id === movie.id) ? 'active' : ''}" 
                         data-movie-id="${movie.id}">
                     <i class="${watchlist.some(m => m.id === movie.id) ? 'fas' : 'far'} fa-heart"></i>
                 </button>
             </div>
-            
             <div class="movie-info-container animate-slide-up">
                 <h2 class="movie-title-detail">${movie.title || 'No title available'}</h2>
-                
                 <div class="movie-metadata">
-                    ${movie.release_date ? `
-                        <div class="metadata-item">
-                            <i class="far fa-calendar-alt"></i>
-                            <span>${new Date(movie.release_date).getFullYear()}</span>
-                        </div>
-                    ` : ''}
-                    
-                    ${movie.runtime ? `
-                        <div class="metadata-item">
-                            <i class="far fa-clock"></i>
-                            <span>${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m</span>
-                        </div>
-                    ` : ''}
-                    
-                    ${movie.vote_average ? `
-                        <div class="metadata-item ${movie.vote_average >= 7 ? 'high-rating' : movie.vote_average >= 5 ? 'medium-rating' : 'low-rating'}">
-                            <i class="fas fa-star"></i>
-                            <span>${movie.vote_average.toFixed(1)} / 10</span>
-                        </div>
-                    ` : ''}
+                    ${movie.release_date ? `<div class="metadata-item"><i class="far fa-calendar-alt"></i><span>${new Date(movie.release_date).getFullYear()}</span></div>` : ''}
+                    ${movie.runtime ? `<div class="metadata-item"><i class="far fa-clock"></i><span>${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m</span></div>` : ''}
+                    ${movie.vote_average ? `<div class="metadata-item ${movie.vote_average >= 7 ? 'high-rating' : movie.vote_average >= 5 ? 'medium-rating' : 'low-rating'}"><i class="fas fa-star"></i><span>${movie.vote_average.toFixed(1)} / 10</span></div>` : ''}
                 </div>
-                
-                ${movie.genres && movie.genres.length > 0 ? `
-                    <div class="genres-list">
-                        ${movie.genres.map(genre => `
-                            <span class="metadata-item">${genre.name}</span>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                
+                ${movie.genres && movie.genres.length > 0 ? `<div class="genres-list">${movie.genres.map(genre => `<span class="metadata-item">${genre.name}</span>`).join('')}</div>` : ''}
                 <p class="movie-description-detail">${movie.overview || 'No description available.'}</p>
-                
-                ${movie.videos && movie.videos.results && movie.videos.results.length > 0 ? `
+                ${movie.videos && movie.videos.results && movie.videos.results.length > 0 && movie.videos.results.find(v => v.site === 'YouTube') ? `
                     <div class="trailer-container">
                         <iframe 
-                            src="https://www.youtube.com/embed/${movie.videos.results[0].key}" 
+                            src="https://www.youtube.com/embed/${movie.videos.results.find(v => v.site === 'YouTube').key}" 
                             frameborder="0" 
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                             allowfullscreen
-                            title="${movie.title} trailer"
+                            title="${movie.title || 'Movie'} trailer"
+                            loading="lazy"
                         ></iframe>
                     </div>
                 ` : ''}
             </div>
         </div>
     `;
-    
-    // Add cast section if available
+
     if (movie.credits && movie.credits.cast && movie.credits.cast.length > 0) {
         const castSection = document.createElement('section');
         castSection.className = 'cast-section animate-fade-in';
@@ -816,7 +744,7 @@ function displayMovieDetails(movie = null) {
                     <div class="cast-item animate-fade-in" style="animation-delay: ${index * 0.05}s">
                         <img class="cast-photo" 
                              src="${person.profile_path ? `https://image.tmdb.org/t/p/w185${person.profile_path}` : 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTg1IiBoZWlnaHQ9IjI3OCIgdmlld0JveD0iMCAwIDE4NSAyNzgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxODUiIGhlaWdodD0iMjc4IiBmaWxsPSIjMmEyODNlIi8+Cjx0ZXh0IHg9IjkyLjUiIHk9IjEzOSIgZmlsbD0iI2FhYWFhYSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiIGZvbnQtc2l6ZT0iMTQiPk5vIEltYWdlPC90ZXh0Pgo8L3N2Zz4K'}" 
-                             alt="${person.name}">
+                             alt="${person.name}" loading="lazy">
                         <div class="cast-info">
                             <div class="cast-name">${person.name}</div>
                             <div class="cast-character">${person.character}</div>
@@ -825,328 +753,386 @@ function displayMovieDetails(movie = null) {
                 `).join('')}
             </div>
         `;
-        
-        movieDetails.parentNode.insertBefore(castSection, movieDetails.nextSibling);
+        if (movieDetails.parentNode) {
+             movieDetails.parentNode.insertBefore(castSection, movieDetails.nextSibling);
+        }
     }
-    
-    // Add favorite button functionality
-    const favoriteBtn = document.querySelector('.favorite-btn');
+
+    const favoriteBtn = movieDetails.querySelector('.favorite-btn');
     if (favoriteBtn) {
         favoriteBtn.addEventListener('click', () => {
             toggleWatchlist(movie.id, {
                 id: movie.id,
                 title: movie.title,
                 poster_path: movie.poster_path,
+                backdrop_path: movie.backdrop_path,
                 release_date: movie.release_date,
                 overview: movie.overview,
-                vote_average: movie.vote_average
+                vote_average: movie.vote_average,
+                genres: movie.genres, 
+                genre_ids: movie.genres ? movie.genres.map(g => g.id) : (movie.genre_ids || []),
+                runtime: movie.runtime,
+                videos: movie.videos,
+                credits: movie.credits
             });
         });
     }
 }
 
-// --- Create Watchlist Page ---
-function createWatchlistPage() {
-    if (!movieListContainer) return;
-    
-    // Hide other elements
+// --- Create Watchlist Page Content (Helper for initializeApp) ---
+function createWatchlistPageContent() {
+    if (!movieListContainer || !movieListContainer.parentNode) return;
+    removeWatchlistTitleIfNeeded();
+    document.body.classList.add('watchlist-active');
+
+
     if (loader) loader.style.display = 'none';
     if (noResultsMessage) noResultsMessage.style.display = 'none';
     if (errorMessage) errorMessage.style.display = 'none';
-    
-    // Add watchlist heading
+    hideBackToHomeButton();
+
+
     const watchlistHeading = document.createElement('h2');
     watchlistHeading.className = 'page-title animate-fade-in';
-    watchlistHeading.innerHTML = '<i class="fas fa-bookmark"></i> Your Watchlist';
     
-    // Clear movie list
-    movieListContainer.innerHTML = '';
     movieListContainer.parentNode.insertBefore(watchlistHeading, movieListContainer);
+    movieListContainer.innerHTML = '';
+
+    const paginationContainer = document.querySelector('.pagination');
+    if (paginationContainer) {
+        paginationContainer.style.display = 'none';
+    }
+
+    // Restore search query if present in URL for watchlist
+    const urlParams = new URLSearchParams(window.location.search);
+    const watchlistQuery = urlParams.get('query');
+    currentSearch = watchlistQuery || ''; // Set currentSearch if query exists for watchlist
+    if(searchInput && currentSearch) searchInput.value = currentSearch;
+
+
+    // Restore selected genre if present in URL for watchlist
+    const watchlistGenre = urlParams.get('genre');
+    selectedGenre = watchlistGenre || '';
+    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+    const activeFilterButton = selectedGenre 
+        ? document.querySelector(`.filter-button[data-genre-id="${selectedGenre}"]`)
+        : document.querySelector('.filter-button[data-genre-id=""]');
+    if (activeFilterButton) activeFilterButton.classList.add('active');
+
+
+    let moviesToDisplay = watchlist;
+    if (selectedGenre) {
+        const genreIdNum = parseInt(selectedGenre);
+        moviesToDisplay = moviesToDisplay.filter(m => m.genre_ids && m.genre_ids.includes(genreIdNum));
+    }
+    if (currentSearch) {
+        moviesToDisplay = moviesToDisplay.filter(m => m.title.toLowerCase().includes(currentSearch.toLowerCase()));
+    }
     
-    // If watchlist is empty
+    watchlistHeading.innerHTML = '<i class="fas fa-bookmark"></i> Your Watchlist';
+    if (currentSearch) {
+        watchlistHeading.innerHTML += ` - Results for "${currentSearch}"`;
+    }
+
+
     if (watchlist.length === 0) {
+        watchlistHeading.innerHTML = '<i class="fas fa-bookmark"></i> Your Watchlist'; // Reset title if empty
         const emptyMessage = document.createElement('div');
         emptyMessage.className = 'watchlist-empty animate-fade-in';
         emptyMessage.innerHTML = `
             <i class="far fa-sad-tear"></i>
             <h3>Your watchlist is empty</h3>
             <p>Movies you add to your watchlist will appear here.</p>
-            <button class="btn" onclick="window.location.href='index.html'">
+            <button class="btn" id="browse-movies-from-empty-watchlist">
                 <i class="fas fa-home"></i> Browse Movies
             </button>
         `;
         movieListContainer.appendChild(emptyMessage);
-        
-        // Hide pagination
-        const pagination = document.querySelector('.pagination');
-        if (pagination) {
-            pagination.style.display = 'none';
-        }
-        
+        const browseBtn = document.getElementById('browse-movies-from-empty-watchlist');
+        if (browseBtn) browseBtn.addEventListener('click', () => window.location.href = 'index.html');
         return;
     }
     
-    // Display watchlist movies
-    displayMovies(watchlist);
-    
-    // Hide pagination
-    const pagination = document.querySelector('.pagination');
-    if (pagination) {
-        pagination.style.display = 'none';
-    }
+    displayMovies(moviesToDisplay);
 }
 
+
+// --- Update Pagination UI ---
 function updatePagination() {
     if (!pageInfo) return;
+    const isWatchlistActive = document.body.classList.contains('watchlist-active');
+    const paginationContainer = document.querySelector('.pagination');
 
-    // Update page info text
-    const displayText = currentSearch ?
+    if (isWatchlistActive || totalPages <= 0 || currentSearch && isWatchlistActive) { // Hide for watchlist, no pages, or watchlist search
+        if(paginationContainer) paginationContainer.style.display = 'none';
+        return;
+    }
+    if(paginationContainer) paginationContainer.style.display = 'flex';
+
+
+    pageInfo.textContent = currentSearch ?
         `Page ${currentPage} of ${totalPages}` :
-        `Popular Movies 2025 - Page ${currentPage} of ${totalPages}`;
-    pageInfo.textContent = displayText;
-    
-    // Update button states
+        `Popular Movies - Page ${currentPage} of ${totalPages}`; 
+
     if (prevButton) prevButton.disabled = currentPage === 1;
     if (nextButton) nextButton.disabled = currentPage >= totalPages;
 }
 
+
+// --- Perform Search ---
 async function performSearch() {
     if (!searchInput) return;
-
     const searchQuery = searchInput.value.trim();
-    if (!searchQuery) {
+    
+    if (!searchQuery) { // Allow clearing search on watchlist
+        if (document.body.classList.contains('watchlist-active')) {
+            currentSearch = '';
+            if(searchInput) searchInput.value = '';
+            updateURL();
+            createWatchlistPageContent(); // Re-render watchlist without search
+            return;
+        }
         showToast('Please enter a movie title to search', 'error');
         return;
     }
 
-    if (window.location.pathname.includes('movieCard.html')) {
-        const redirectUrl = 'index.html?query=' + encodeURIComponent(searchQuery);
-        window.location.href = redirectUrl;
-        return;
+    currentSearch = searchQuery; // Set currentSearch globally
+
+    if (document.body.classList.contains('watchlist-active')) {
+        // We are on the watchlist page, filter client-side
+        currentPage = 1; // Reset page for new search within watchlist
+        updateURL(); // Update URL with watchlist=true and query=searchQuery
+        
+        let filteredMovies = watchlist.filter(movie =>
+            movie.title.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+        // Apply genre filter if active on watchlist
+        if (selectedGenre) {
+            const genreIdNumber = parseInt(selectedGenre);
+            filteredMovies = filteredMovies.filter(movie =>
+                movie.genre_ids && movie.genre_ids.includes(genreIdNumber)
+            );
+        }
+        displayMovies(filteredMovies);
+
+        let watchlistHeadingEl = movieListContainer.parentNode.querySelector('.page-title');
+        if (!watchlistHeadingEl) {
+            watchlistHeadingEl = document.createElement('h2');
+            watchlistHeadingEl.className = 'page-title animate-fade-in';
+            if (movieListContainer.parentNode) {
+                 movieListContainer.parentNode.insertBefore(watchlistHeadingEl, movieListContainer);
+            }
+        }
+        watchlistHeadingEl.innerHTML = `<i class="fas fa-bookmark"></i> Your Watchlist - Results for "${searchQuery}"`;
+        
+        const paginationContainer = document.querySelector('.pagination');
+        if (paginationContainer) paginationContainer.style.display = 'none';
+        hideBackToHomeButton(); // No back to home needed for watchlist internal search
+    
+    } else if (window.location.pathname.includes('movieCard.html')) {
+        // If on movie card page, redirect to index.html with the search query
+        window.location.href = `index.html?query=${encodeURIComponent(searchQuery)}`;
     }
-
-    showBackToHomeButton();
-
-    currentSearch = searchQuery;
-    currentPage = 1;
-
-    // Update the URL
-    updateURL();
-
-    // Fetch and display movies
-    fetchAndDisplayMovies();
+    else {
+        // Standard API search (not on watchlist, not on movie card)
+        removeWatchlistTitleIfNeeded();
+        document.body.classList.remove('watchlist-active');
+        showBackToHomeButton();
+        currentPage = 1;
+        // selectedGenre = ''; // Keep selected genre if user wants to search within it
+        // document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+        // const allFilterButton = document.querySelector('.filter-button[data-genre-id=""]');
+        // if (allFilterButton) allFilterButton.classList.add('active');
+        updateURL(); 
+        fetchAndDisplayMovies(); 
+    }
 }
 
+// --- Show/Hide Back to Home Button ---
 function showBackToHomeButton() {
     const backToHomeContainer = document.querySelector('.back-to-home');
-    if (backToHomeContainer) {
-        backToHomeContainer.classList.remove('disabled');
-    }
-    
-    if (backToHomeButton) {
-        backToHomeButton.style.display = 'inline-flex';
-    }
+    if (backToHomeContainer) backToHomeContainer.classList.remove('disabled');
+    if (backToHomeButton) backToHomeButton.style.display = 'inline-flex';
 }
 
 function hideBackToHomeButton() {
     const backToHomeContainer = document.querySelector('.back-to-home');
-    if (backToHomeContainer) {
-        backToHomeContainer.classList.add('disabled');
-    }
-    
-    if (backToHomeButton) {
-        backToHomeButton.style.display = 'none';
-    }
+    if (backToHomeContainer) backToHomeContainer.classList.add('disabled');
+    if (backToHomeButton) backToHomeButton.style.display = 'none';
 }
 
-async function loadPopularMovies() {
+// --- Load Popular Movies (Navigates to clean popular state) ---
+function loadPopularMoviesState() {
+    document.body.classList.remove('watchlist-active');
+    removeWatchlistTitleIfNeeded();
     hideBackToHomeButton();
-
     currentSearch = '';
     currentPage = 1;
-    selectedGenre = '';
+    selectedGenre = ''; 
+    if (searchInput) searchInput.value = '';
 
-    // Update URL
-    updateURL();
-
-    // Reset genre filter buttons if they exist
-    const filterButtons = document.querySelectorAll('.filter-button');
-    if (filterButtons.length > 0) {
-        filterButtons.forEach(btn => {
-            btn.classList.remove('active');
-        });
-        filterButtons[0].classList.add('active');
-    }
-
-    // Fetch and display movies
-    fetchAndDisplayMovies();
+    document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+    const allFilterButton = document.querySelector('.filter-button[data-genre-id=""]');
+    if (allFilterButton) allFilterButton.classList.add('active');
+    
+    updateURL(); 
+    fetchAndDisplayMovies(); 
 }
 
-function initializeApp() {
-    // Set up UI elements
-    initializeUI();
-    
-    // Set current year in footer
-    if (currentYearSpan) currentYearSpan.textContent = new Date().getFullYear();
+// --- Utility to remove watchlist title ---
+function removeWatchlistTitleIfNeeded() {
+    const watchlistHeading = document.querySelector('.page-title');
+    if (watchlistHeading && watchlistHeading.innerHTML.includes('Your Watchlist')) {
+        watchlistHeading.remove();
+    }
+}
 
-    // Check if we're on the movieCard.html page
+
+// --- Initialize Application ---
+function initializeApp() {
+    initializeUI(); 
+
+    const urlParams = new URLSearchParams(window.location.search);
     const isMovieCardPage = window.location.pathname.includes('movieCard.html');
-    const isWatchlistPage = window.location.search.includes('watchlist=true');
     
-    if (isWatchlistPage) {
-        // Display watchlist
-        createWatchlistPage();
+    // Determine page type
+    if (urlParams.has('watchlist')) {
+        createWatchlistPageContent();
     } else if (isMovieCardPage) {
-        // Get movie ID from URL
-        const urlParams = new URLSearchParams(window.location.search);
+        document.body.classList.remove('watchlist-active');
         const movieId = urlParams.get('id');
-        
         if (movieId) {
-            // Fetch and display movie details
             fetchMovieDetails(movieId);
         } else {
-            // Try to use stored movie data
-            displayMovieDetails();
+            displayMovieDetails(); 
         }
-    } else {
-        // We're on the main page
-        
-        // Check for URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const query = urlParams.get('query');
-        const page = parseInt(urlParams.get('page')) || 1;
-        const genre = urlParams.get('genre');
-        
-        // Set up the state
-        currentSearch = query || '';
-        currentPage = page;
-        selectedGenre = genre || '';
-        
-        // Update the search input if needed
+    } else { 
+        // Popular or API search results page
+        document.body.classList.remove('watchlist-active');
+        currentSearch = urlParams.get('query') || '';
+        currentPage = parseInt(urlParams.get('page')) || 1;
+        selectedGenre = urlParams.get('genre') || ''; 
+
         if (searchInput && currentSearch) {
             searchInput.value = currentSearch;
             showBackToHomeButton();
+        } else {
+            hideBackToHomeButton();
         }
         
-        // Fetch and display movies
+        if (selectedGenre) {
+            document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+            const genreButton = document.querySelector(`.filter-button[data-genre-id="${selectedGenre}"]`);
+            if (genreButton) genreButton.classList.add('active');
+        } else {
+             document.querySelectorAll('.filter-button').forEach(btn => btn.classList.remove('active'));
+            const allFilterButton = document.querySelector('.filter-button[data-genre-id=""]');
+            if (allFilterButton) allFilterButton.classList.add('active');
+        }
+        removeWatchlistTitleIfNeeded();
         fetchAndDisplayMovies();
     }
 
-    // Search button click
-    if (searchButton) {
-        searchButton.addEventListener('click', performSearch);
-    }
-
-    // Home/Popular button click
+    // Event Listeners
+    if (searchButton) searchButton.addEventListener('click', performSearch);
+    
     if (homeButton) {
-        homeButton.addEventListener('click', loadPopularMovies);
-        searchInput.value = '';
-        searchInput.blur()
+        homeButton.addEventListener('click', () => {
+            // Always navigate to a clean popular movies state
+            window.location.href = 'index.html';
+        });
+    }
+    
+    if (watchlistButton) { 
+        watchlistButton.addEventListener('click', () => {
+            // Navigate to update URL, then initializeApp will handle page creation
+            window.location.href = 'index.html?watchlist=true'; 
+        });
     }
 
-    // Enter key press
+
     if (searchInput) {
         searchInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 performSearch();
-                searchInput.blur();
+                // searchInput.blur(); // Keep focus for subsequent searches if desired
+            }
+        });
+         searchInput.addEventListener('input', () => { // Live search for watchlist
+            if (document.body.classList.contains('watchlist-active')) {
+                // To avoid too many updates, you might want to debounce this
+                // For simplicity, direct call:
+                currentSearch = searchInput.value.trim();
+                updateURL(); // Update URL as user types in watchlist search
+                createWatchlistPageContent(); // Re-filter and display
             }
         });
     }
 
-    // Global keyboard shortcuts
     document.addEventListener('keydown', (e) => {
         const activeElement = document.activeElement;
         const isTyping = activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable;
-    
         if (e.key === '/' && !isTyping) {
             e.preventDefault();
             if (searchInput) searchInput.focus();
         }
-
-        if (e.key === 'Escape') {
-            if (searchInput && document.activeElement === searchInput) {
-                searchInput.value = '';
-                searchInput.blur();
+        if (e.key === 'Escape' && searchInput && document.activeElement === searchInput) {
+            searchInput.value = '';
+             if (document.body.classList.contains('watchlist-active')) { // If on watchlist, clear search and refresh
+                currentSearch = '';
+                updateURL();
+                createWatchlistPageContent();
             }
+            searchInput.blur();
         }
-        
-        // Arrow key navigation for pagination
         if (!isTyping) {
-            if (e.key === 'ArrowLeft' && prevButton && !prevButton.disabled) {
-                prevButton.click();
-            } else if (e.key === 'ArrowRight' && nextButton && !nextButton.disabled) {
-                nextButton.click();
-            }
+            if (e.key === 'ArrowLeft' && prevButton && !prevButton.disabled) prevButton.click();
+            else if (e.key === 'ArrowRight' && nextButton && !nextButton.disabled) nextButton.click();
         }
     });
 
-    // Previous button
     if (prevButton) {
         prevButton.addEventListener('click', () => {
             if (currentPage > 1) {
                 currentPage--;
                 updateURL();
                 fetchAndDisplayMovies();
-                
-                // Scroll to top
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         });
     }
-
-    // Next button
     if (nextButton) {
         nextButton.addEventListener('click', () => {
             if (currentPage < totalPages) {
                 currentPage++;
                 updateURL();
                 fetchAndDisplayMovies();
-                
-                // Scroll to top
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
         });
     }
 
-    // Back to home button
     if (backToHomeButton) {
         backToHomeButton.addEventListener('click', () => {
-            // Clear search and load popular movies
-            loadPopularMovies();
+             window.location.href = 'index.html'; 
         });
     }
-
-    // Back to search/home button on movie card page
     if (backToSearchButton) {
         backToSearchButton.addEventListener('click', () => {
             const savedState = JSON.parse(localStorage.getItem('searchState')) || {};
             let redirectUrl = 'index.html';
-
-            // Check if there was an active search or filter
-            if (savedState.query || savedState.genre) {
-                // Add query parameters to maintain the state
-                const params = new URLSearchParams();
-                if (savedState.query) {
-                    params.set('query', savedState.query);
-                }
-                if (savedState.page && savedState.page > 1) {
-                    params.set('page', savedState.page);
-                }
-                if (savedState.genre) {
-                    params.set('genre', savedState.genre);
-                }
-                redirectUrl += `?${params.toString()}`;
-            }
-
+            const params = new URLSearchParams();
+            if (savedState.query) params.set('query', savedState.query);
+            if (savedState.page && savedState.page > 1) params.set('page', savedState.page.toString());
+            if (savedState.genre) params.set('genre', savedState.genre);
+            if (params.toString()) redirectUrl += `?${params.toString()}`;
             window.location.href = redirectUrl;
         });
+    }
+    if (isMovieCardPage) {
+        document.body.classList.add('on-movie-card-page');
+    } else {
+        document.body.classList.remove('on-movie-card-page');
     }
 }
 
