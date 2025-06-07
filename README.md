@@ -21,7 +21,8 @@ A modern, responsive web application for discovering and exploring popular movie
 ## 📸 Screenshots
 
 ### Desktop View
-![image](https://github.com/user-attachments/assets/d697a9bb-8979-42db-8868-9451d954077c)
+<!-- ![image](https://github.com/user-attachments/assets/d697a9bb-8979-42db-8868-9451d954077c) -->
+![image](https://github.com/0M4R0/movieExplorer/blob/main/screenshots/Desktop.jpeg)
 
 
 ### Mobile View
