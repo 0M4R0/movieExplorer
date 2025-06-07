@@ -29,6 +29,7 @@ let currentPage = 1;
 let currentSearch = '';
 let totalPages = 0;
 let selectedGenre = ''; // Stores the ID of the selected genre
+let selectedYear = ''; // Add this line to store the selected year
 let watchlist = JSON.parse(localStorage.getItem('watchlist')) || [];
 
 // --- Constants ---
@@ -77,6 +78,7 @@ function initializeUI() {
     // Ensure it's only created if not on movieCard.html
     if (movieListContainer && !document.querySelector('.filter-bar') && !window.location.pathname.includes('movieCard.html')) {
         createGenreFilterBar();
+        createYearFilterBar(); // Add year filter bar after genre filter
     }
 
     // Create toast container
@@ -97,6 +99,73 @@ function initializeUI() {
             }
         }
     });
+}
+
+function createYearFilterBar() {
+    const filterBar = document.createElement('div');
+    filterBar.className = 'filter-bar year-filter-bar';
+
+    // Create select element
+    const yearSelect = document.createElement('select');
+    yearSelect.className = 'year-select';
+    yearSelect.id = 'year-select';
+    
+    // Add "All" option
+    const allOption = document.createElement('option');
+    allOption.className = 'year-select-option';
+    allOption.value = '';
+    allOption.textContent = 'All Years';
+    yearSelect.appendChild(allOption);
+
+    // Add year options from current year down to 2000
+    const currentYear = new Date().getFullYear();
+    for (let year = currentYear; year >= 2000; year--) {
+        const yearOption = document.createElement('option');
+        yearOption.value = year.toString();
+        yearOption.textContent = year.toString();
+        yearSelect.appendChild(yearOption);
+    }
+
+    // Add event listener for year select
+    yearSelect.addEventListener('change', (e) => {
+        selectedYear = e.target.value;
+        currentPage = 1;
+
+        const isWatchlistPage = window.location.search.includes('watchlist=true');
+        
+        if (isWatchlistPage) {
+            let filteredWatchlistMovies;
+            if (selectedYear) {
+                filteredWatchlistMovies = watchlist.filter(movie => 
+                    movie.release_date && movie.release_date.startsWith(selectedYear)
+                );
+            } else {
+                filteredWatchlistMovies = watchlist;
+            }
+            displayMovies(filteredWatchlistMovies);
+        } else {
+            fetchAndDisplayMovies(); // Use fetchAndDisplayMovies instead of fetchMovies
+        }
+    });
+
+    // Add label for accessibility
+    const label = document.createElement('label');
+    label.htmlFor = 'year-select';
+    label.textContent = 'Filter by Year: ';
+    label.className = 'year-filter-label';
+
+    filterBar.appendChild(label);
+    filterBar.appendChild(yearSelect);
+
+    // Insert the year filter bar after the genre filter bar
+    const genreFilterBar = document.querySelector('.filter-bar');
+    if (genreFilterBar) {
+        genreFilterBar.insertAdjacentElement('afterend', filterBar);
+    } else {
+        movieListContainer.insertAdjacentElement('beforebegin', filterBar);
+    }
+
+    return filterBar;
 }
 
 // --- Create Genre Filter Bar ---
@@ -418,7 +487,8 @@ function createSkeletonLoaders() {
 }
 
 // --- Fetch movies from API ---
-async function fetchMovies(searchQuery = null, page = 1, genreId = '') {
+async function fetchMovies(searchQuery = null, page = 1, genreId = '', year = '') {
+    const currentYear = new Date().getFullYear();
     createSkeletonLoaders(); 
 
     if (loader) loader.style.display = 'none';
@@ -427,15 +497,21 @@ async function fetchMovies(searchQuery = null, page = 1, genreId = '') {
 
     let url;
     if (!searchQuery) {
-        const currentYear = new Date().getFullYear();
-        url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&sort_by=popularity.desc&primary_release_year=${currentYear}&page=${page}`;
+        // Popular movies with year filter
+        url = `https://api.themoviedb.org/3/discover/movie?api_key=${apiKey}&sort_by=popularity.desc&page=${page}`;
+        if (year) {
+            url += `&primary_release_year=${year}`;
+        } else {
+            url += `&primary_release_year=${currentYear}`;
+        }
         if (genreId) {
             url += `&with_genres=${genreId}`;
         }
     } else {
+        // Search movies
         url = `https://api.themoviedb.org/3/search/movie?api_key=${apiKey}&query=${encodeURIComponent(searchQuery)}&page=${page}`;
-        if (genreId) { // TMDb search API doesn't directly use with_genres with query, but we can try
-             url += `&with_genres=${genreId}`; // This might not be effective for 'search' endpoint
+        if (genreId) {
+            url += `&with_genres=${genreId}`;
         }
     }
 
@@ -448,8 +524,22 @@ async function fetchMovies(searchQuery = null, page = 1, genreId = '') {
             const errorText = await response.text();
             throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
-        const data = await response.json();
-        totalPages = data.total_pages > 500 ? 500 : data.total_pages; 
+        let data = await response.json();
+
+        // If we have a search query and a year selected, sort the results
+        if (searchQuery && year && data.results) {
+            // Sort results: movies from selected year first, then others
+            data.results.sort((a, b) => {
+                const aYear = a.release_date ? a.release_date.substring(0, 4) : '';
+                const bYear = b.release_date ? b.release_date.substring(0, 4) : '';
+                
+                if (aYear === year && bYear !== year) return -1;
+                if (aYear !== year && bYear === year) return 1;
+                return 0;
+            });
+        }
+
+        totalPages = data.total_pages > 500 ? 500 : data.total_pages;
         return data;
     } catch (error) {
         console.error('Error fetching movies:', error);
@@ -463,7 +553,7 @@ async function fetchMovies(searchQuery = null, page = 1, genreId = '') {
 
 // --- Fetch and display movies ---
 async function fetchAndDisplayMovies() {
-    const data = await fetchMovies(currentSearch || null, currentPage, selectedGenre);
+    const data = await fetchMovies(currentSearch || null, currentPage, selectedGenre, selectedYear);
     displayMovies(data.results);
     updatePagination();
     createPaginationNumbers();
