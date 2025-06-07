@@ -21,7 +21,10 @@ A modern, responsive web application for discovering and exploring popular movie
 ## 📸 Screenshots
 
 ### Desktop View
+screenshots/desktop.png
 
+### Mobile View
+screenshots/mobile.png
 
 
 ## 🛠️ Built With
